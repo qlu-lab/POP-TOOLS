@@ -1,0 +1,40 @@
+*********************************************************************
+* LD Score Regression (LDSC)
+* Version 1.0.0
+* (C) 2014-2015 Brendan Bulik-Sullivan and Hilary Finucane
+* Broad Institute of MIT and Harvard / MIT Department of Mathematics
+* GNU General Public License v3
+*********************************************************************
+Call: 
+./ldsc.py \
+--print-snps list.txt \
+--ld-wind-cm 1.0 \
+--out LDscore.17 \
+--bfile ../plink_files/1000G.EUR.QC.17 \
+--l2  
+
+Beginning analysis at Wed Apr 27 10:40:23 2016
+Read list of 269222 SNPs from ../plink_files/1000G.EUR.QC.17.bim
+Read list of 489 individuals from ../plink_files/1000G.EUR.QC.17.fam
+Reading genotypes from ../plink_files/1000G.EUR.QC.17.bed
+Estimating LD Score.
+Reading list of 1217311 SNPs for which to print LD Scores from list.txt
+After merging with --print-snps, LD Scores for 32218 SNPs will be printed.
+Writing LD Scores for 32218 SNPs to LDscore.17.l2.ldscore.gz
+
+Summary of LD Scores in LDscore.17.l2.ldscore.gz
+        MAF        L2
+mean  0.243   104.351
+std   0.144   134.373
+min   0.005    -1.010
+25%   0.115    37.356
+50%   0.235    68.332
+75%   0.368   127.520
+max   0.500  2997.287
+
+MAF/LD Score Correlation Matrix
+       MAF     L2
+MAF  1.000  0.169
+L2   0.169  1.000
+Analysis finished at Wed Apr 27 10:44:06 2016
+Total time elapsed: 3.0m:42.9s

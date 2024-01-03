@@ -1,0 +1,11 @@
+bitarray
+numpy
+packaging
+pandas
+polars-lts-cpu
+python-dateutil
+pytz
+scipy
+six
+tzdata
+typing
