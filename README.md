@@ -23,7 +23,8 @@ We provide a [web interface](https://jmiao24.shinyapps.io/pop-gwas/) for the pow
 
 ## Citation
 
-If you use `POP-TOOLS`, please cite 
+If you use `POP-TOOLS`, please cite:
+
 [Valid inference for machine learning-assisted GWAS](https://www.medrxiv.org/content/10.1101/2024.01.03.24300779v1)
 
 ## Contact
