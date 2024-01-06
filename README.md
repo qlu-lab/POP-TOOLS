@@ -6,9 +6,11 @@ The `POP-TOOLS` toolkit can be used to conduct
 
 ## Manual
 
-The `POP-TOOLS` can be downloaded via 
+The `POP-TOOLS` and its required modules can be installed via 
 
-`git clone https://github.com/qlu-lab/POP-TOOLS`
+`git clone https://github.com/qlu-lab/POP-TOOLS
+cd POP-TOOLS
+pip install -r requirements.txt`
 
 Please see the [TL;DR](https://github.com/qlu-lab/POP-TOOLS/wiki/1.-POP%E2%80%90GWAS#tldr) to conduct `POP-GWAS`
 
