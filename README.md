@@ -28,6 +28,7 @@ We provide a [web interface](https://jmiao24.shinyapps.io/pop-gwas/) for the pow
 ## Reference
 
 [Valid inference for machine learning-assisted GWAS](https://www.medrxiv.org/content/10.1101/2024.01.03.24300779v1)
+
 [Assumption-lean and Data-adaptive Post-Prediction Inference](https://arxiv.org/abs/2311.14220)
 
 ## Contact
