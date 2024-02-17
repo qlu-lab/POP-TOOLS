@@ -67,14 +67,13 @@ def main():
         log.log("\n### Writing the POP-GWAS results ###\n")
         out_fh = utils.save_output(df=df, out_prefix=out_prefix)
         log.log(f"--- POP-GWAS summary statistics has been written to {out_prefix}.txt\n")
+
+        log.log('--- Analysis finished at {T} ---'.format(T=time.ctime()))
+        log.log('--- Total time elapsed: {T} ---'.format(T=utils.sec_to_str(time.time()-start_time)))
         
     except Exception as e:
         log.log(f"Error during operation: {e}")
         raise
         
-    finally:
-        log.log('--- Analysis finished at {T} ---'.format(T=time.ctime()))
-        log.log('--- Total time elapsed: {T} ---'.format(T=utils.sec_to_str(time.time()-start_time)))
-
 if __name__ == "__main__":
     main()
