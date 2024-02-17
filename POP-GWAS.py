@@ -24,7 +24,7 @@ def parse_args():
     parser.add_argument("--bt", "--binary-trait", dest="bt", action="store_true", default=False,
         help="Whether the trait is binary or not")
     parser.add_argument("--r", action="store", default=None, type=float,
-        help="The imputation quality (correlation between observed and imputed phenotype) in labeled dataset")  
+        help="The imputation quality (correlation between observed and imputed phenotype after adjusting for GWAS covariates) in labeled dataset")  
     return parser.parse_args()
 
 def main():
