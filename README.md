@@ -21,6 +21,8 @@ Please see the [TL;DR](https://github.com/qlu-lab/POP-TOOLS/wiki/1.-POP%E2%80%90
 
 Please see the [wiki](https://github.com/qlu-lab/POP-TOOLS/wiki) for tutorials describing the basic function and along with detailed manual of `POP-TOOLS`. 
 
+Please see the [FAQ](https://github.com/qlu-lab/POP-TOOLS/wiki/FAQ) for frequently asked questions related to `POP-TOOLS`.
+
 ## Power and sample size calculator
 
 We provide a [web interface](https://jmiao24.shinyapps.io/pop-gwas/) for the power and sample size calculator for ML-assisted GWAS.
