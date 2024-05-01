@@ -1,13 +1,8 @@
 import os, sys, subprocess
-import os, sys, subprocess
 import polars as pl
 from functools import reduce
 from argparse import ArgumentTypeError
 from typing import List
-
-# Global constants
-# logger = logging.getLogger("__main__.parsing")
-# logger = logging.getLogger("__main__.parsing")
 
 _self_dir = os.path.dirname(os.path.abspath(__file__))
 _self_exec =  sys.executable
@@ -16,7 +11,7 @@ const_dict = {
     'CHR': 'CHR', 'BP': 'BP', 'SNP': 'SNP', 'A1': 'A1', 'A2': 'A2', 'Z': 'Z',
     'Z_YHAT_LAB': 'Z_yhat_lab', 'Z_YHAT_UNLAB': 'Z_yhat_unlab', 'Z_Y_LAB': 'Z_y_lab',
     'Z_YHAT_LAB': 'Z_yhat_lab', 'Z_YHAT_UNLAB': 'Z_yhat_unlab', 'Z_Y_LAB': 'Z_y_lab',
-    'N_LAB': 'N_lab', 'N_LAB_CASE': 'N_lab_case', 'N_LAB_CONTROL': 'N_lab_control',
+    'N_LAB1': 'N_lab1', 'N_LAB2': 'N_lab2','N_LAB_CASE': 'N_lab_case', 'N_LAB_CONTROL': 'N_lab_control',
     'N_UNLAB': 'N_unlab', 'N_UNLAB_CASE': 'N_unlab_case', 'N_UNLAB_CONTROL': 'N_unlab_control',
     'N_EFF': 'N_eff', 'N_EFF_CASE': 'N_eff_case', 'N_EFF_CONTROL': 'N_eff_control',
     'BETA': 'BETA', 'OR': 'OR', 'SE': 'SE', 'P': 'P', 'EAF': 'EAF',
@@ -52,19 +47,46 @@ class Logger(object):
         print(msg, file=self.log_fh)
         print(msg)
 
-def extract_r_from_ldsc(args, log):
+def extract_single_r_from_ldsc(args, log):
     log.log('### Computing r using LDSC ###\n')
-    r = _extract_r_from_ldsc_log(_run_ldsc(ss_in_y_lab=args.gwas_y_lab, ss_in_yhat_lab=args.gwas_yhat_lab, out=args.out, binary=args.bt, log=log))
+
+    log.log(f"--- Parsing GWAS summary statistics on y in labeled data: {args.gwas_y_lab}")
+    ss_y_lab = _munge_ss_for_ldsc(args.gwas_y_lab, f'{args.out}_y_lab', args.bt)
+
+    log.log(f"--- Parsing GWAS summary statistics on yhat in labeled data: {args.gwas_yhat_lab}")
+    ss_yhat_lab = _munge_ss_for_ldsc(args.gwas_yhat_lab, f'{args.out}_yhat_lab', args.bt)
+
+    r = _extract_r_from_ldsc_log(_run_ldsc(y1=ss_y_lab, y2=ss_yhat_lab, out=args.out, binary=args.bt, log=log))
     for f in [f'{args.out}_y_lab.sumstats.gz', f'{args.out}_y_lab.log', f'{args.out}_yhat_lab.sumstats.gz', f'{args.out}_yhat_lab.log', f'{args.out}_ldsc.log']:
         os.remove(f)
     return r
+
+def extract_multi_r_from_ldsc(args, log):
+    log.log('### Computing pairwise r using LDSC ###\n')
+
+    log.log(f"--- Parsing GWAS summary statistics on y in labeled data: {args.gwas_y_lab}")
+    ss_y_lab = _munge_ss_for_ldsc(args.gwas_y_lab, f'{args.out}_y_lab', args.bt)
+
+    log.log(f"--- Parsing GWAS summary statistics on yhat in labeled data: {args.gwas_yhat_lab}")
+    ss_yhat_lab = _munge_ss_for_ldsc(args.gwas_yhat_lab, f'{args.out}_yhat_lab', args.bt)
+
+    log.log(f"--- Parsing GWAS summary statistics on yhat in unlabeled data: {args.gwas_yhat_unlab}")
+    ss_yhat_unlab = _munge_ss_for_ldsc(args.gwas_yhat_unlab, f'{args.out}_yhat_unlab', args.bt)
+
+    r12 = _extract_r_from_ldsc_log(_run_ldsc(y1=ss_y_lab, y2=ss_yhat_lab, out=f'{args.out}_12', binary=args.bt, log=log))
+    r13 = _extract_r_from_ldsc_log(_run_ldsc(y1=ss_y_lab, y2=ss_yhat_unlab, out=f'{args.out}_13', binary=args.bt, log=log))
+    r23 = _extract_r_from_ldsc_log(_run_ldsc(y1=ss_yhat_lab, y2=ss_yhat_unlab, out=f'{args.out}_23', binary=args.bt, log=log))
+
+    for f in [f'{args.out}_y_lab.sumstats.gz', f'{args.out}_y_lab.log', f'{args.out}_yhat_lab.sumstats.gz', f'{args.out}_yhat_lab.log', f'{args.out}_yhat_unlab.sumstats.gz', f'{args.out}_yhat_unlab.log', f'{args.out}_12_ldsc.log', f'{args.out}_13_ldsc.log', f'{args.out}_23_ldsc.log']:
+        os.remove(f)
+    return r12,r13,r23
 
 def read_z(args, log):
     return _read_z(ss_in_yhat_unlab=args.gwas_yhat_unlab, ss_in_y_lab=args.gwas_y_lab, ss_in_yhat_lab=args.gwas_yhat_lab, binary=args.bt, log=log)
 
 def save_output(df, out_prefix):
-    _format_out(df=df).collect().write_csv(file=out_prefix+'.txt', include_header=True, separator="\t", quote_style="never", null_value='NA', float_precision=5)
-    # _format_out(df=df).sink_csv(path=out_prefix+'.txt', include_header=True, separator="\t", quote_style="never", null_value='NA', float_precision=5)
+    # _format_out(df=df).collect().write_csv(file=out_prefix+'.txt.gz', include_header=True, separator="\t", quote_style="never", null_value='NA', float_precision=5)
+    _format_out(df=df).sink_csv(path=out_prefix+'.txt', include_header=True, separator="\t", quote_style="never", null_value='NA', float_precision=5)
 
 
 """
@@ -77,6 +99,7 @@ def _munge_ss_for_ldsc(ss_fh, out, binary):
             f'{_self_dir}/ldsc/munge_sumstats.py',
             "--sumstats", ss_fh,
             "--out", out,
+            "--chunksize", "500000",
             "--signed-sumstats", "Z,0",
             "--merge-alleles", f'{_self_dir}/ldsc/w_hm3.snplist'
         ] + (
@@ -88,18 +111,13 @@ def _munge_ss_for_ldsc(ss_fh, out, binary):
 
     return f'{out}.sumstats.gz'
     
-def _run_ldsc(ss_in_y_lab, ss_in_yhat_lab, out, binary, log):
-    log.log(f"--- Parsing GWAS summary statistics on y in labeled data: {ss_in_y_lab}")
-    ss_y_lab = _munge_ss_for_ldsc(ss_in_y_lab, f'{out}_y_lab', binary)
-    log.log(f"--- Parsing GWAS summary statistics on yhat in labeled data: {ss_in_yhat_lab}")
-    ss_yhat_lab = _munge_ss_for_ldsc(ss_in_yhat_lab, f'{out}_yhat_lab', binary)
-    
-    log.log("--- Computing r using GWAS on y and yhat in labeled data")
+def _run_ldsc(y1, y2, out, binary, log):
+
     subprocess.run(
         [
             _self_exec,
             f'{_self_dir}/ldsc/ldsc.py',
-            "--rg", f"{ss_y_lab},{ss_yhat_lab}",
+            "--rg", f"{y1},{y2}",
             "--ref-ld-chr", const_dict['LD_score'],
             "--w-ld-chr", const_dict['LD_weights'],
             "--out", f'{out}_ldsc'
@@ -119,30 +137,32 @@ def _extract_r_from_ldsc_log(fh):
             values = ll[i + 1].strip().split()
             return float(values[header.index("gcov_int")])
 
-def _read_ss(ss_fh, binary, eaf, n, log):
-    if binary and eaf and n:
+def _read_ss(ss_fh, binary, unlab, ylab, log):
+    if binary:
         tmp = pl.read_csv(ss_fh, has_header=True, separator="\t", try_parse_dates=False, null_values='NA', n_threads=1, n_rows=1).columns
         if "N_case" not in tmp or "N_control" not in tmp:
             binary = False
-    old_cols = ["CHR", "BP", "SNP", "A1", "A2"] + (["EAF"] if eaf else []) + ["Z"] + ((["N_case", "N_control"] if binary else ["N"]) if n else [])
+    old_cols = ["CHR", "BP", "SNP", "A1", "A2"] + (["EAF"] if ylab else []) + ["Z"] + (["N_case", "N_control"] if binary else ["N"])
     
-    z = const_dict['Z_YHAT_UNLAB'] if eaf and n else const_dict['Z']
-    new_cols = [const_dict['CHR'], const_dict['BP'], const_dict['SNP'], const_dict['A1'], const_dict['A2']] + ([const_dict['EAF']] if eaf else []) + [z]
-    if n:
-        if eaf:
-            if binary:
-                new_cols.extend([const_dict['N_UNLAB_CASE'], const_dict['N_UNLAB_CONTROL']])
-            else:
-                new_cols.append(const_dict['N_UNLAB'])
+    z = const_dict['Z_YHAT_UNLAB'] if unlab else const_dict['Z']
+    new_cols = [const_dict['CHR'], const_dict['BP'], const_dict['SNP'], const_dict['A1'], const_dict['A2']] + ([const_dict['EAF']] if ylab else []) + [z]
+    if unlab:
+        if binary:
+            new_cols.extend([const_dict['N_UNLAB_CASE'], const_dict['N_UNLAB_CONTROL']])
         else:
-            if binary:
-                new_cols.extend([const_dict['N_LAB_CASE'], const_dict['N_LAB_CONTROL']])
+            new_cols.append(const_dict['N_UNLAB'])
+    else:
+        if binary:
+            new_cols.extend([const_dict['N_LAB_CASE'], const_dict['N_LAB_CONTROL']])
+        else:
+            if ylab: # If y in labedled data
+                new_cols.append(const_dict['N_LAB1'])        
             else:
-                new_cols.append(const_dict['N_LAB'])            
+                new_cols.append(const_dict['N_LAB2'])    
     if isinstance(ss_fh, str) and os.path.exists(ss_fh):
-        log.log(f"--- Reading GWAS on {'y' if eaf ^ n else 'yhat'} in {'unlabeled' if eaf and n else 'labeled'} data: {ss_fh}")
+        log.log(f"--- Reading GWAS on {'y' if ylab else 'yhat'} in {'unlabeled' if unlab else 'labeled'} data: {ss_fh}")
         try: 
-            ss = pl.scan_csv(ss_fh, has_header=True, separator="\t", try_parse_dates=False, null_values='NA') \
+            ss = pl.read_csv(ss_fh, has_header=True, separator="\t", try_parse_dates=False, null_values='NA') \
                  .select(old_cols) \
                  .rename(dict(zip(old_cols,new_cols)))
         except ValueError as e:
@@ -156,11 +176,11 @@ def _read_ss(ss_fh, binary, eaf, n, log):
     else:
         raise FileNotFoundError(f"File not found or invalid input: {ss_fh}")
     
-    if n and binary:
-        if eaf:
+    if binary:
+        if unlab:
             ss = ss.with_columns((pl.col(const_dict['N_UNLAB_CASE']) + pl.col(const_dict['N_UNLAB_CONTROL'])).alias(const_dict['N_UNLAB'])).drop([const_dict['N_UNLAB_CASE'], const_dict['N_UNLAB_CONTROL']])
         else:
-            ss = ss.with_columns((pl.col(const_dict['N_LAB_CASE']) + pl.col(const_dict['N_LAB_CONTROL'])).alias(const_dict['N_LAB'])).drop(const_dict['N_LAB_CONTROL'])
+            ss = ss.with_columns((pl.col(const_dict['N_LAB_CASE']) + pl.col(const_dict['N_LAB_CONTROL'])).alias(const_dict['N_LAB1'])).drop(const_dict['N_LAB_CONTROL'])
     
     return ss.drop_nulls(subset=[z])
 
@@ -182,9 +202,9 @@ def _merge_match_a1a2(ss1, ss2):
 
 def _read_z(ss_in_yhat_unlab, ss_in_y_lab, ss_in_yhat_lab, binary, log):
     
-    @pl.api.register_lazyframe_namespace("alleles")
+    @pl.api.register_dataframe_namespace("alleles")
     class AllelesOperations:
-        def __init__(self, lf: pl.LazyFrame):
+        def __init__(self, lf: pl.DataFrame):
             self._lf = lf
 
         def _invalid_snps(self, alleles_cols: List[str]) -> pl.Expr:
@@ -196,6 +216,7 @@ def _read_z(ss_in_yhat_unlab, ss_in_y_lab, ss_in_yhat_lab, binary, log):
             con4 = pl.col(a1x).is_in(['G', 'C']) & pl.col(a2x).is_in(['G', 'C']) & (pl.col(a1).is_in(['A', 'T']) | pl.col(a2).is_in(['A', 'T']))
             return (~con0) | (con1) | (con2) | (con3) | (con4)
         
+        # Count the number of SNPs with invalid alleles
         def filter_snps(self, alleles_cols: List[str]) -> pl.LazyFrame:
             return self._lf.filter(~self._lf.alleles._invalid_snps(alleles_cols))
 
@@ -208,14 +229,30 @@ def _read_z(ss_in_yhat_unlab, ss_in_y_lab, ss_in_yhat_lab, binary, log):
                 pl.when(self._lf.alleles._match_alleles(alleles_cols)).then(pl.col(z_col)).otherwise(-pl.col(z_col)).alias(z_col)
             )
     
-    ss_yhat_unlab = _read_ss(ss_fh=ss_in_yhat_unlab, binary=binary, eaf=True, n=True, log=log)
-    ss_y_lab = _read_ss(ss_fh=ss_in_y_lab, binary=binary, eaf=False, n=True, log=log)
-    ss_yhat_lab = _read_ss(ss_fh=ss_in_yhat_lab, binary=binary, eaf=False, n=False, log=log)
+    ss_yhat_unlab = _read_ss(ss_fh=ss_in_yhat_unlab, binary=binary, unlab=True, ylab = False, log=log)
+    ss_y_lab = _read_ss(ss_fh=ss_in_y_lab, binary=binary, unlab=False, ylab = True, log=log)
+    ss_yhat_lab = _read_ss(ss_fh=ss_in_yhat_lab, binary=binary, unlab=False, ylab = False, log=log)
     
-    log.log("--- Parsing these three input GWAS")
-    df = reduce(_merge_match_a1a2, [ss_yhat_unlab, ss_y_lab, ss_yhat_lab])
+    log.log("\n--- Parsing these three input GWAS")
+    # Remove SNPs with any duplicated IDs
+    nrow = ss_y_lab.select(pl.col(const_dict['SNP']).count())[0,0]
+    unique_filter = (
+        ss_y_lab.groupby(pl.col(const_dict['SNP']))
+        .agg(pl.count().alias("count"))
+        .filter(pl.col("count") == 1)
+        .select(const_dict['SNP'])
+        )
+    ss_y_lab = ss_y_lab.join(unique_filter, on=const_dict['SNP'], how='inner')
+    nrow -= ss_y_lab.select(pl.col(const_dict['SNP']).count())[0,0]
+    log.log(f"--- Removed {nrow} SNPs with any duplicated IDs")
 
-    return df, const_dict['N_LAB'], const_dict['N_LAB_CASE'] if binary else None, const_dict['N_UNLAB'], const_dict['EAF']
+    # Match A1 and A2; align Z; Remove SNPs with non-biallelic alleles or unmatched alleles across different input GWAS
+    nrows = ss_y_lab.shape[0]
+    df = reduce(_merge_match_a1a2, [ss_y_lab, ss_yhat_unlab, ss_yhat_lab])
+    nrows -= df.shape[0]
+    log.log(f"--- Removed {nrows} SNPs with non-biallelic alleles or unmatched alleles across different input GWAS")
+
+    return df, const_dict['N_LAB1'], const_dict['N_LAB2'], const_dict['N_LAB_CASE'] if binary else None, const_dict['N_UNLAB'], const_dict['EAF']
 
 def _format_out(df):
     @pl.api.register_expr_namespace("decimal")

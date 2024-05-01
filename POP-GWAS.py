@@ -4,7 +4,7 @@ from compute import estimate_popgwas
 
 TopHEAD = "*********************************************************************\n"
 TopHEAD += "* POst-Prediction Genome-Wide Association Studies (POP-GWAS) \n"
-TopHEAD += "* Version 1.0.0 \n"
+TopHEAD += "* Version 1.1.0 \n"
 TopHEAD += "* (C) Jiacheng Miao and Yixuan Wu \n"
 TopHEAD += "* University of Wisconsin-Madison \n"
 TopHEAD += "* https://github.com/qlu-lab/POP-TOOLS \n"
@@ -23,6 +23,8 @@ def parse_args():
         help="The prefix of path to output summary statistics")
     parser.add_argument("--bt", "--binary-trait", dest="bt", action="store_true", default=False,
         help="Whether the trait is binary or not")
+    parser.add_argument("--ovp", "--sample-overlap", dest="ovp", action="store_true", default=False,
+        help="Whether to correct for sample overlap or not")
     parser.add_argument("--r", action="store", default=None, type=float,
         help="The imputation quality (correlation between observed and imputed phenotype after adjusting for GWAS covariates) in labeled dataset")  
     return parser.parse_args()
@@ -52,17 +54,29 @@ def main():
         log.log(f'--- Analysis began at {time.ctime()} ---\n')
         start_time = time.time()
 
-        r = utils.extract_r_from_ldsc(args=args, log=log) if args.r is None else args.r
-        log.log(f"--- The imputation quality r = {r}")
-           
+        if not args.ovp:
+            r12 = utils.extract_single_r_from_ldsc(args=args, log=log) if args.r is None else args.r
+            log.log(f"--- The imputation quality r = {r12}")
+        else:
+            r12,r13,r23 = utils.extract_multi_r_from_ldsc(args=args, log=log)
+            log.log(f"\n--- The correlation between GWAS estimates on y and yhat in labeled data = {r12}")
+            log.log(f"--- The correlation between GWAS estimates on y in labeled data and yhat in unlabeled data = {r13}")
+            log.log(f"--- The correlation between GWAS estimates on yhat in labeled and unlabeled data = {r23}")
+        
         log.log("\n### Reading the GWAS summary statistics ###\n")
         # parse summary statistics -> Z table
-        z_df, n_col, n_case_col, N_col, eaf_col = utils.read_z(args=args, log=log)
+        z_df, n_col, N1_col, n_case_col, N2_col, eaf_col = utils.read_z(args=args, log=log)
         
         # calculate
-        log.log("\n### Obatining the POP-GWAS results ###\n")
-        df = estimate_popgwas(z_df=z_df, n_col=n_col, n_case_col=n_case_col, N_col=N_col, eaf_col=eaf_col, bt=args.bt, r=r)
-        log.log("\n--- Finish\n")
+        if not args.ovp:
+            log.log("\n### Obatining the POP-GWAS results ###\n")
+            df = estimate_popgwas(z_df=z_df, n_col=n_col, N1_col=N1_col, n_case_col=n_case_col, N2_col=N2_col, eaf_col=eaf_col, bt=args.bt, r12=r12, r13 = 0, r23 = 0)
+            log.log("\n--- Finish\n")
+        else:
+            log.log("\n### Obatining the POP-GWAS results with sample overlap correction ###")
+            df = estimate_popgwas(z_df=z_df, n_col=n_col, N1_col=N1_col, n_case_col=n_case_col, N2_col=N2_col, eaf_col=eaf_col, bt=args.bt, r12=r12, r13 = r13, r23 = r23)
+            log.log("\n--- Finish")
+
 
         log.log("\n### Writing the POP-GWAS results ###\n")
         out_fh = utils.save_output(df=df, out_prefix=out_prefix)

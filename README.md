@@ -28,6 +28,7 @@ Please see the [FAQ](https://github.com/qlu-lab/POP-TOOLS/wiki/FAQ) for frequent
 We provide a [web interface](https://jmiao24.shinyapps.io/pop-gwas/) for the power and sample size calculator for ML-assisted GWAS.
 
 ## Version History
+* May 1, 2024: Added quality control to remove SNPs with duplicate IDs; added a version of the sample overlap correction; modified scipts to accommodate the latest version of polars.
 * Jan 2, 2024: Initial release.
 
 ## Reference
