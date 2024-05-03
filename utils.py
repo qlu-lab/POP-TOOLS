@@ -179,9 +179,10 @@ def _read_ss(ss_fh, binary, unlab, ylab, log):
     if binary:
         if unlab:
             ss = ss.with_columns((pl.col(const_dict['N_UNLAB_CASE']) + pl.col(const_dict['N_UNLAB_CONTROL'])).alias(const_dict['N_UNLAB'])).drop([const_dict['N_UNLAB_CASE'], const_dict['N_UNLAB_CONTROL']])
-        else:
+        elif ylab:
             ss = ss.with_columns((pl.col(const_dict['N_LAB_CASE']) + pl.col(const_dict['N_LAB_CONTROL'])).alias(const_dict['N_LAB1'])).drop(const_dict['N_LAB_CONTROL'])
-    
+        else:
+            ss = ss.with_columns((pl.col(const_dict['N_LAB_CASE']) + pl.col(const_dict['N_LAB_CONTROL'])).alias(const_dict['N_LAB2'])).drop(const_dict['N_LAB_CONTROL'], const_dict['N_LAB_CASE'])
     return ss.drop_nulls(subset=[z])
 
 def _merge_match_a1a2(ss1, ss2):
