@@ -144,7 +144,7 @@ def _read_ss(ss_fh, binary, unlab, ylab, log):
             binary = False
     old_cols = ["CHR", "BP", "SNP", "A1", "A2"] + (["EAF"] if ylab else []) + ["Z"] + (["N_case", "N_control"] if binary else ["N"])
     
-    z = const_dict['Z_YHAT_UNLAB'] if unlab else const_dict['Z']
+    z = const_dict['Z_Y_LAB'] if ylab else const_dict['Z']
     new_cols = [const_dict['CHR'], const_dict['BP'], const_dict['SNP'], const_dict['A1'], const_dict['A2']] + ([const_dict['EAF']] if ylab else []) + [z]
     if unlab:
         if binary:
@@ -192,9 +192,9 @@ def _merge_match_a1a2(ss1, ss2):
          .select(~pl.selectors.by_name(const_dict['CHR'] + 'x', const_dict['BP'] + 'x')) \
          .alleles.filter_snps(alleles_list)
          
-    if const_dict['Z_Y_LAB'] not in ss1.columns: # first merge between ss
+    if const_dict['Z_YHAT_UNLAB'] not in ss1.columns: # first merge between ss
         ss = ss.alleles.align_alleles_z(alleles_list, const_dict['Z']) \
-             .rename({const_dict['Z']: const_dict['Z_Y_LAB']})
+             .rename({const_dict['Z']: const_dict['Z_YHAT_UNLAB']})
     else:
         ss = ss.alleles.align_alleles_z(alleles_list, const_dict['Z']) \
              .rename({const_dict['Z']: const_dict['Z_YHAT_LAB']})
