@@ -34,15 +34,10 @@ We provide a [web interface](https://jmiao24.shinyapps.io/pop-gwas/) for the pow
 
 ## Reference
 
-[Valid inference for machine learning-assisted genome-wide association studies](https://www.nature.com/articles/s41588-024-01934-0)
+If you use `POP-GWAS`, please cite
 
-[Assumption-Lean and Data-adaptive Post-Prediction Inference](https://arxiv.org/abs/2311.14220)
-
-[Task-agnostic machine-learning-assisted inference](https://arxiv.org/abs/2405.20039)
+Miao, J., Wu, Y., Sun, Z. et al. Valid inference for machine learning-assisted genome-wide association studies. Nat Genet (2024). https://doi.org/10.1038/s41588-024-01934-0
 
 ## Contact
 
 For questions and comments, please open a GitHub issue (preferred) or contact Jiacheng Miao at jiacheng.miao@wisc.edu or Qiongshi Lu at qlu@biostat.wisc.edu.
-
-## "POP" familial links
-* [POPInf](https://github.com/qlu-lab/POPinf) (**PO**st-**P**rediction **Inf**erence) is a generic toolkit for conducting valid and powerful post-prediction inference. It is more general (can be applied to a wider range of statistical quantities), but is not optimized for genetic applications.
