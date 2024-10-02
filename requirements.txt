@@ -2,7 +2,7 @@ bitarray>=2.9.0
 numpy>=1.26.2
 packaging >= 23.2
 pandas >= 2.1.4
-polars-lts-cpu == 0.20.23
+polars-lts-cpu == 1.8.2
 pytz >= 2023.3
 scipy >= 1.11.4
 six >= 1.16.0
