@@ -238,7 +238,7 @@ def _read_z(ss_in_yhat_unlab, ss_in_y_lab, ss_in_yhat_lab, binary, log):
     # Remove SNPs with any duplicated IDs
     nrow = ss_y_lab.select(pl.col(const_dict['SNP']).count())[0,0]
     unique_filter = (
-        ss_y_lab.groupby(pl.col(const_dict['SNP']))
+        ss_y_lab.group_by(pl.col(const_dict['SNP']))
         .agg(pl.count().alias("count"))
         .filter(pl.col("count") == 1)
         .select(const_dict['SNP'])
@@ -263,22 +263,23 @@ def _format_out(df):
 
         def to_scientific(self, decimals: int) -> pl.Expr:
             exponent = pl.when(self._expr==0).then(0).otherwise(self._expr.abs().log10().floor().cast(pl.Int32, strict=False))
-            mantissa = (self._expr / (10.0 ** exponent)).round(decimals).cast(pl.Utf8).str.ljust(decimals + 2, '0')
-            return pl.concat_str([mantissa, pl.lit('e'), pl.when(exponent >= 0).then(pl.lit('+')).otherwise(pl.lit('-')), exponent.abs().cast(pl.Utf8).str.rjust(2, '0')])
+            mantissa = (self._expr / (10.0 ** exponent)).round(decimals).cast(pl.Utf8).str.pad_end(decimals + 2, '0')
+            return pl.concat_str([mantissa, pl.lit('e'), pl.when(exponent >= 0).then(pl.lit('+')).otherwise(pl.lit('-')), exponent.abs().cast(pl.Utf8).str.pad_start(2, '0')])
 
         def to_positional(self, decimals: int) -> pl.Expr:
             s = self._expr.round(decimals).cast(pl.Utf8).str.split(by='.')
-            return pl.concat_str([s.list.get(0), pl.lit('.'), s.list.get(1).str.ljust(decimals, '0')])
+            return pl.concat_str([s.list.get(0), pl.lit('.'), s.list.get(1).str.pad_end(decimals, '0')])
         
         def to_int(self) -> pl.Expr:
             return self._expr.round(0).cast(pl.Int32).cast(pl.Utf8)
         
     df = df.with_columns([pl.col(const_dict['P']).decimal.to_scientific(3).alias(const_dict['P']), pl.col(const_dict['Z']).decimal.to_positional(3).alias(const_dict['Z']), pl.col(const_dict['N_EFF']).decimal.to_int().alias(const_dict['N_EFF'])])
-    if const_dict['N_EFF_CASE'] in df.columns:
+    column_names = df.collect_schema().names()
+    if const_dict['N_EFF_CASE'] in column_names:
         df = df.with_columns([pl.col(const_dict['N_EFF_CASE']).decimal.to_int().alias(const_dict['N_EFF_CASE']), pl.col(const_dict['N_EFF_CONTROL']).decimal.to_int().alias(const_dict['N_EFF_CONTROL'])])
     
     # Sorting the DataFrame
-    if (const_dict['CHR'] in df.columns and const_dict['BP'] in df.columns):
+    if (const_dict['CHR'] in column_names and const_dict['BP'] in column_names):
         return df.sort(by=[const_dict['CHR'], const_dict['BP']])
 
     return df.sort(by=const_dict['SNP'])
