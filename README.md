@@ -5,8 +5,8 @@
 `POP-TOOLS` (**PO**st-**P**rediction **TOOLS**) is a Python3-based command line toolkit for conducting valid and powerful machine learning (ML)-assisted genetic association studies. 
 
 The `POP-TOOLS` toolkit can be used to conduct
-* ML-Assisted Genome-Wide Association Studies.
-* ML-Assisted Rare-Variant Association Analysis.
+* ML-Assisted Genome-Wide Association Studies (GWAS).
+* ML-Assisted Rare-Variant Association Studies (RVAS).
 
 ## Manual
 
@@ -20,7 +20,7 @@ pip install -r requirements.txt
 
 Please see the [TL;DR](https://github.com/qlu-lab/POP-TOOLS/wiki/1.-POP%E2%80%90GWAS#tldr) for **ML-assisted GWAS** using `POP-GWAS`
 
-Please see the [TL;DR](https://github.com/qlu-lab/POP-TOOLS/wiki/2.-POP%E2%80%90GWAS-for-Rare%E2%80%90Variant-Association-Analysis#tldr) for **ML-assisted Rare-Variant Association Analysis** (single-variant and gene-level burden test) using `POP-GWAS`.
+Please see the [TL;DR](https://github.com/qlu-lab/POP-TOOLS/wiki/2.-POP%E2%80%90GWAS-for-Rare%E2%80%90Variant-Association-Analysis#tldr) for **ML-assisted Rare-Variant Association Studies** (single-variant and gene-level burden test) using `POP-GWAS`.
 
 Please see the [wiki](https://github.com/qlu-lab/POP-TOOLS/wiki) for tutorials describing the basic function along with a detailed manual of `POP-TOOLS`. 
 
