@@ -5,8 +5,8 @@
 `POP-TOOLS` (**PO**st-**P**rediction **TOOLS**) is a Python3-based command line toolkit for conducting valid and powerful machine learning (ML)-assisted genetic association studies. 
 
 The `POP-TOOLS` toolkit can be used to conduct
-* ML-Assisted Genome-Wide Association Studies (GWAS).
-* ML-Assisted Rare-Variant Association Studies (RVAS).
+* **ML-Assisted Genome-Wide Association Studies (GWAS)**.
+* **ML-Assisted Rare-Variant Association Studies (RVAS)**.
 
 ## Manual
 
