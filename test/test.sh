@@ -48,4 +48,3 @@ trait=T2D
 --sample-overlap \
 --bt \
 --out ./test/results/${trait}_ovp
-

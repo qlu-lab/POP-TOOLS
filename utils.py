@@ -15,6 +15,7 @@ const_dict = {
     'N_UNLAB': 'N_unlab', 'N_UNLAB_CASE': 'N_unlab_case', 'N_UNLAB_CONTROL': 'N_unlab_control',
     'N_EFF': 'N_eff', 'N_EFF_CASE': 'N_eff_case', 'N_EFF_CONTROL': 'N_eff_control',
     'BETA': 'BETA', 'OR': 'OR', 'SE': 'SE', 'P': 'P', 'EAF': 'EAF',
+    'GENE': 'GENE', 'MASK': 'MASK',
     'LD_score': f'{_self_dir}/ldsc/EUR_1KGphase3/LDscore/LDscore.',
     'LD_weights': f'{_self_dir}/ldsc/EUR_1KGphase3/weights/weights.hm3_noMHC.'
 }
@@ -81,12 +82,20 @@ def extract_multi_r_from_ldsc(args, log):
         os.remove(f)
     return r12,r13,r23
 
-def read_z(args, log):
-    return _read_z(ss_in_yhat_unlab=args.gwas_yhat_unlab, ss_in_y_lab=args.gwas_y_lab, ss_in_yhat_lab=args.gwas_yhat_lab, binary=args.bt, log=log)
+def read_z(args, log, rare = False):
+    return _read_z(ss_in_yhat_unlab=args.gwas_yhat_unlab, ss_in_y_lab=args.gwas_y_lab, ss_in_yhat_lab=args.gwas_yhat_lab, binary=args.bt, log=log, rare = rare)
+
+def read_z_gene(args, log):
+    return _read_z_gene(ss_in_yhat_unlab=args.gwas_yhat_unlab, ss_in_y_lab=args.gwas_y_lab, ss_in_yhat_lab=args.gwas_yhat_lab, binary=args.bt, log=log)
 
 def save_output(df, out_prefix):
     # _format_out(df=df).collect().write_csv(file=out_prefix+'.txt.gz', include_header=True, separator="\t", quote_style="never", null_value='NA', float_precision=5)
     _format_out(df=df).sink_csv(path=out_prefix+'.txt', include_header=True, separator="\t", quote_style="never", null_value='NA', float_precision=5)
+
+def save_output_gene(df, out_prefix):
+    # _format_out(df=df).collect().write_csv(file=out_prefix+'.txt.gz', include_header=True, separator="\t", quote_style="never", null_value='NA', float_precision=5)
+    _format_out_gene(df=df).sink_csv(path=out_prefix+'.txt', include_header=True, separator="\t", quote_style="never", null_value='NA', float_precision=5)
+
 
 
 """
@@ -185,6 +194,41 @@ def _read_ss(ss_fh, binary, unlab, ylab, log):
             ss = ss.with_columns((pl.col(const_dict['N_LAB_CASE']) + pl.col(const_dict['N_LAB_CONTROL'])).alias(const_dict['N_LAB2'])).drop(const_dict['N_LAB_CONTROL'], const_dict['N_LAB_CASE'])
     return ss.drop_nulls(subset=[z])
 
+def _read_ss_gene(ss_fh, binary, unlab, ylab, log):
+    if binary:
+        tmp = pl.read_csv(ss_fh, has_header=True, separator="\t", try_parse_dates=False, null_values='NA', n_threads=1, n_rows=1).columns
+        if "N_case" not in tmp or "N_control" not in tmp:
+            binary = False
+    old_cols = ["GENE", "MASK", "Z", "N"]
+    
+    z = const_dict['Z_Y_LAB'] if ylab else const_dict['Z']
+    new_cols = ["GENE", "MASK"] + [z]
+    if unlab:
+        new_cols.append(const_dict['N_UNLAB'])
+    else:
+        if ylab: # If y in labedled data
+            new_cols.append(const_dict['N_LAB1'])        
+        else:
+            new_cols.append(const_dict['N_LAB2'])    
+    if isinstance(ss_fh, str) and os.path.exists(ss_fh):
+        log.log(f"--- Reading Burden test summary statistics on {'y' if ylab else 'yhat'} in {'unlabeled' if unlab else 'labeled'} data: {ss_fh}")
+        try: 
+            ss = pl.read_csv(ss_fh, has_header=True, separator="\t", try_parse_dates=False, null_values='NA') \
+                 .select(old_cols) \
+                 .rename(dict(zip(old_cols,new_cols)))
+        except ValueError as e:
+            log.log(f"ValueError error occurred: {e}")
+        except pl.exceptions.ComputeError as e:
+            # log.log(f"ComputeError error occurred: {e}")
+            ss = pl.read_csv(ss_fh, has_header=True, columns=old_cols, separator="\t", try_parse_dates=False, null_values='NA') \
+                 .lazy() \
+                 .select(old_cols) \
+                 .rename(dict(zip(old_cols,new_cols)))
+    else:
+        raise FileNotFoundError(f"File not found or invalid input: {ss_fh}")
+    
+    return ss.drop_nulls(subset=[z])
+
 def _merge_match_a1a2(ss1, ss2):
     alleles_list = [const_dict['A1'], const_dict['A2'], const_dict['A1'] + 'x', const_dict['A2'] + 'x']
 
@@ -201,7 +245,34 @@ def _merge_match_a1a2(ss1, ss2):
 
     return ss.drop([const_dict['A1'] + 'x', const_dict['A2'] + 'x'])
 
-def _read_z(ss_in_yhat_unlab, ss_in_y_lab, ss_in_yhat_lab, binary, log):
+def _merge_match_a1a2_rare(ss1, ss2):
+    alleles_list = [const_dict['A1'], const_dict['A2'], const_dict['A1'] + 'x', const_dict['A2'] + 'x']
+
+    ss = ss1.join(ss2, on=const_dict['SNP'], how='inner', suffix='x') \
+         .select(~pl.selectors.by_name(const_dict['CHR'] + 'x', const_dict['BP'] + 'x'))
+         
+    if const_dict['Z_YHAT_UNLAB'] not in ss1.columns: # first merge between ss
+        ss = ss.alleles.align_alleles_z(alleles_list, const_dict['Z']) \
+             .rename({const_dict['Z']: const_dict['Z_YHAT_UNLAB']})
+    else:
+        ss = ss.alleles.align_alleles_z(alleles_list, const_dict['Z']) \
+             .rename({const_dict['Z']: const_dict['Z_YHAT_LAB']})
+
+    return ss.drop([const_dict['A1'] + 'x', const_dict['A2'] + 'x'])
+
+def _merge_gene(ss1, ss2):
+
+    ss = ss1.join(ss2, on=const_dict['GENE'], how='inner', suffix='x') \
+        .select(~pl.selectors.by_name(const_dict['MASK'] + 'x')) \
+
+    if const_dict['Z_YHAT_UNLAB'] not in ss1.columns: # first merge between ss
+        ss = ss.rename({const_dict['Z']: const_dict['Z_YHAT_UNLAB']})
+    else:
+        ss = ss.rename({const_dict['Z']: const_dict['Z_YHAT_LAB']})
+
+    return ss
+
+def _read_z(ss_in_yhat_unlab, ss_in_y_lab, ss_in_yhat_lab, binary, log, rare = False):
     
     @pl.api.register_dataframe_namespace("alleles")
     class AllelesOperations:
@@ -249,11 +320,29 @@ def _read_z(ss_in_yhat_unlab, ss_in_y_lab, ss_in_yhat_lab, binary, log):
 
     # Match A1 and A2; align Z; Remove SNPs with non-biallelic alleles or unmatched alleles across different input GWAS
     nrows = ss_y_lab.shape[0]
-    df = reduce(_merge_match_a1a2, [ss_y_lab, ss_yhat_unlab, ss_yhat_lab])
-    nrows -= df.shape[0]
-    log.log(f"--- Removed {nrows} SNPs with non-biallelic alleles or unmatched alleles across different input GWAS")
+    if rare == True:
+        df = reduce(_merge_match_a1a2_rare, [ss_y_lab, ss_yhat_unlab, ss_yhat_lab])
+        nrows -= df.shape[0]
+        log.log(f"--- Removed {nrows} SNPs with unmatched alleles across different input GWAS")
+    else:
+        df = reduce(_merge_match_a1a2, [ss_y_lab, ss_yhat_unlab, ss_yhat_lab])
+        nrows -= df.shape[0]
+        log.log(f"--- Removed {nrows} SNPs with non-biallelic alleles or unmatched alleles across different input GWAS")
 
     return df, const_dict['N_LAB1'], const_dict['N_LAB2'], const_dict['N_LAB_CASE'] if binary else None, const_dict['N_UNLAB'], const_dict['EAF']
+
+def _read_z_gene(ss_in_yhat_unlab, ss_in_y_lab, ss_in_yhat_lab, binary, log):
+    
+    ss_yhat_unlab = _read_ss_gene(ss_fh=ss_in_yhat_unlab, binary=binary, unlab=True, ylab = False, log=log)
+    ss_y_lab = _read_ss_gene(ss_fh=ss_in_y_lab, binary=binary, unlab=False, ylab = True, log=log)
+    ss_yhat_lab = _read_ss_gene(ss_fh=ss_in_yhat_lab, binary=binary, unlab=False, ylab = False, log=log)
+    
+    log.log("\n--- Parsing these three input Burden test summary statistics")
+
+    # Match A1 and A2; align Z; Remove SNPs with non-biallelic alleles or unmatched alleles across different input GWAS
+    df = reduce(_merge_gene, [ss_y_lab, ss_yhat_unlab, ss_yhat_lab])
+
+    return df, const_dict['N_LAB1'], const_dict['N_LAB2'], const_dict['N_UNLAB']
 
 def _format_out(df):
     @pl.api.register_expr_namespace("decimal")
@@ -274,7 +363,7 @@ def _format_out(df):
             return self._expr.round(0).cast(pl.Int32).cast(pl.Utf8)
         
     df = df.with_columns([pl.col(const_dict['P']).decimal.to_scientific(3).alias(const_dict['P']), pl.col(const_dict['Z']).decimal.to_positional(3).alias(const_dict['Z']), pl.col(const_dict['N_EFF']).decimal.to_int().alias(const_dict['N_EFF'])])
-    column_names = df.collect_schema().names()
+    column_names = df.columns
     if const_dict['N_EFF_CASE'] in column_names:
         df = df.with_columns([pl.col(const_dict['N_EFF_CASE']).decimal.to_int().alias(const_dict['N_EFF_CASE']), pl.col(const_dict['N_EFF_CONTROL']).decimal.to_int().alias(const_dict['N_EFF_CONTROL'])])
     
@@ -283,3 +372,27 @@ def _format_out(df):
         return df.sort(by=[const_dict['CHR'], const_dict['BP']])
 
     return df.sort(by=const_dict['SNP'])
+
+
+def _format_out_gene(df):
+    @pl.api.register_expr_namespace("decimal")
+    class FormatDecimalOperations:
+        def __init__(self, expr: pl.Expr):
+            self._expr = expr
+
+        def to_scientific(self, decimals: int) -> pl.Expr:
+            exponent = pl.when(self._expr==0).then(0).otherwise(self._expr.abs().log10().floor().cast(pl.Int32, strict=False))
+            mantissa = (self._expr / (10.0 ** exponent)).round(decimals).cast(pl.Utf8).str.pad_end(decimals + 2, '0')
+            return pl.concat_str([mantissa, pl.lit('e'), pl.when(exponent >= 0).then(pl.lit('+')).otherwise(pl.lit('-')), exponent.abs().cast(pl.Utf8).str.pad_start(2, '0')])
+
+        def to_positional(self, decimals: int) -> pl.Expr:
+            s = self._expr.round(decimals).cast(pl.Utf8).str.split(by='.')
+            return pl.concat_str([s.list.get(0), pl.lit('.'), s.list.get(1).str.pad_end(decimals, '0')])
+        
+        def to_int(self) -> pl.Expr:
+            return self._expr.round(0).cast(pl.Int32).cast(pl.Utf8)
+        
+    df = df.with_columns([pl.col(const_dict['P']).decimal.to_scientific(3).alias(const_dict['P']), pl.col(const_dict['Z']).decimal.to_positional(3).alias(const_dict['Z']), pl.col(const_dict['N_EFF']).decimal.to_int().alias(const_dict['N_EFF'])])
+
+    return df
+
