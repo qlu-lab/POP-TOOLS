@@ -17,9 +17,11 @@ cd POP-TOOLS
 pip install -r requirements.txt
 ```
 
-Please see the [TL;DR](https://github.com/qlu-lab/POP-TOOLS/wiki/1.-POP%E2%80%90GWAS#tldr) to conduct `POP-GWAS`
+Please see the [TL;DR](https://github.com/qlu-lab/POP-TOOLS/wiki/1.-POP%E2%80%90GWAS#tldr) ML-assisted GWAS using `POP-GWAS`
 
-Please see the [wiki](https://github.com/qlu-lab/POP-TOOLS/wiki) for tutorials describing the basic function and along with detailed manual of `POP-TOOLS`. 
+Please see the [TL;DR](https://github.com/qlu-lab/POP-TOOLS/wiki/2.-POP%E2%80%90GWAS-for-Rare%E2%80%90Variant-Association-Analysis#tldr) for Rare-Variant Association Analysis (single-variant and gene-level burden test) using `POP-GWAS`.
+
+Please see the [wiki](https://github.com/qlu-lab/POP-TOOLS/wiki) for tutorials describing the basic function along with a detailed manual of `POP-TOOLS`. 
 
 Please see the [FAQ](https://github.com/qlu-lab/POP-TOOLS/wiki/FAQ) for frequently asked questions related to `POP-TOOLS`.
 
@@ -28,7 +30,9 @@ Please see the [FAQ](https://github.com/qlu-lab/POP-TOOLS/wiki/FAQ) for frequent
 We provide a [web interface](https://jmiao24.shinyapps.io/pop-gwas/) for the power and sample size calculation for ML-assisted GWAS.
 
 ## Version History
-[Version 1.1.0] (May 1, 2024): Added quality control to remove SNPs with duplicate IDs; Added a version of the sample overlap correction; Modified scipts to accommodate the latest version of polars.
+[Version 1.2.0] (May 1, 2024): Added POP-GWAS for rare-variant association analysis (single-variant and Burden test).
+
+[Version 1.1.0] (May 1, 2024): Added quality control to remove SNPs with duplicate IDs; Added a version of the sample overlap correction; Modified scripts to accommodate the latest version of Polaris.
   
 [Version 1.0.0] (Jan 2, 2024): Initial release.
 
