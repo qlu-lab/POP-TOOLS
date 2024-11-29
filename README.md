@@ -31,7 +31,7 @@ Please see the [FAQ](https://github.com/qlu-lab/POP-TOOLS/wiki/FAQ) for frequent
 We provide a [web interface](https://jmiao24.shinyapps.io/pop-gwas/) for the power and sample size calculation for ML-assisted GWAS.
 
 ## Version History
-[Version 1.2.0] (May 1, 2024): Added POP-GWAS for rare-variant association analysis (single-variant and Burden test).
+[Version 1.2.0] (May 1, 2024): Added POP-GWAS for rare-variant association studies (single-variant and Burden test).
 
 [Version 1.1.0] (May 1, 2024): Added quality control to remove SNPs with duplicate IDs; Added a version of the sample overlap correction; Modified scripts to accommodate the latest version of Polaris.
   
