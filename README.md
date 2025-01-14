@@ -1,7 +1,3 @@
-<h1 align="center">
-<p> POP-TOOLS
-</h1>
-
 ![a-clean-modern-logo-for-pop-tools-the-lo_A4fy2WPpSMiwCwT-MoI9wA_ew8czs3dTvSx6uS6Dj7nmA](https://github.com/user-attachments/assets/777a994f-4860-477e-83f3-8fff9d6a7ce3)
 
 
