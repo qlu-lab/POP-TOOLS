@@ -1,4 +1,4 @@
-<img width="1190" alt="Screenshot 2025-01-13 at 6 57 17 PM" src="https://github.com/user-attachments/assets/2565682f-d599-46a7-9ec3-67cd266749ff" />
+<img width="1269" alt="Screenshot 2025-01-13 at 7 00 38 PM" src="https://github.com/user-attachments/assets/cd20be44-9878-4656-bda5-ce13d29c8ccf" />
 
 
 `POP-TOOLS` (**PO**st-**P**rediction **TOOLS**) is a Python3-based command line toolkit for conducting valid and powerful machine learning (ML)-assisted genetic association studies. 
