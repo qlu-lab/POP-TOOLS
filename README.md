@@ -5,7 +5,7 @@
 
 The `POP-TOOLS` toolkit can be used to conduct
 * **ML-Assisted Genome-Wide Association Studies (GWAS)**.
-* **ML-Assisted Rare-Variant Association Studies (RVAS)**.
+* **ML-Assisted Rare-Variant Association Studies (RVAS) and gene-based test**.
 
 ## Manual
 
