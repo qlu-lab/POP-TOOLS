@@ -40,7 +40,7 @@ We provide a [web interface](https://jmiao24.shinyapps.io/pop-gwas/) for the pow
 
 If you use `POP-GWAS`, please cite
 
-Miao, J., Wu, Y., Sun, Z. et al. Valid inference for machine learning-assisted genome-wide association studies. Nat Genet (2024). https://doi.org/10.1038/s41588-024-01934-0
+Miao, J., Wu, Y., Sun, Z. et al. Valid inference for machine learning-assisted genome-wide association studies. Nat Genet, 56(11), 2361-2369 (2024). https://doi.org/10.1038/s41588-024-01934-0
 
 ## Contact
 
