@@ -23,7 +23,7 @@ def parse_args():
         help="The prefix of path to output summary statistics")
     parser.add_argument("--bt", "--binary-trait", dest="bt", action="store_true", default=False,
         help="Whether the trait is binary or not")
-    parser.add_argument("--ovp", "--sample-overlap", dest="ovp", action="store_true", default=False,
+    parser.add_argument("--ovp", "--sample-overlap", dest="ovp", action="store_true", default=True,
         help="Whether to correct for sample overlap or not")
     parser.add_argument("--r", action="store", default=None, type=float,
         help="The imputation quality (correlation between observed and imputed phenotype after adjusting for GWAS covariates) in labeled dataset")  
