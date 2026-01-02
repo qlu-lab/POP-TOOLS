@@ -704,9 +704,9 @@ class RG(object):
                 np.maximum(0.0001, np.multiply(hsq1.tot_delete_values, hsq2.tot_delete_values)))
             rg = jk.RatioJackknife(
                 rg_ratio, gencov.tot_delete_values, denom_delete_values)
-            self.rg_jknife = float(rg.jknife_est)
-            self.rg_se = float(rg.jknife_se)
-            self.rg_ratio = float(rg_ratio)
+            self.rg_jknife = np.asarray(rg.jknife_est).item()
+            self.rg_se = np.asarray(rg.jknife_se).item()
+            self.rg_ratio = np.asarray(rg_ratio).item()
             self.p, self.z = p_z_norm(self.rg_ratio, self.rg_se)
 
     def summary(self, silly=False):
