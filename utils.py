@@ -194,40 +194,49 @@ def _read_ss(ss_fh, binary, unlab, ylab, log):
             ss = ss.with_columns((pl.col(const_dict['N_LAB_CASE']) + pl.col(const_dict['N_LAB_CONTROL'])).alias(const_dict['N_LAB2'])).drop(const_dict['N_LAB_CONTROL'], const_dict['N_LAB_CASE'])
     return ss.drop_nulls(subset=[z])
 
+def _validate_sample_counts(ss, column, ss_fh):
+    values = ss[column].cast(pl.Float64)
+    if (values.is_null().any() or not values.is_finite().all()
+            or (values <= 0).any() or (values != values.floor()).any()):
+        raise ValueError(f"{ss_fh}: {column} must contain positive finite integer sample counts")
+    return values
+
+
 def _read_ss_gene(ss_fh, binary, unlab, ylab, log):
-    if binary:
-        tmp = pl.read_csv(ss_fh, has_header=True, separator="\t", try_parse_dates=False, null_values='NA', n_threads=1, n_rows=1).columns
-        if "N_case" not in tmp or "N_control" not in tmp:
-            binary = False
-    old_cols = ["GENE", "MASK", "Z", "N"]
-    
-    z = const_dict['Z_Y_LAB'] if ylab else const_dict['Z']
-    new_cols = ["GENE", "MASK"] + [z]
-    if unlab:
-        new_cols.append(const_dict['N_UNLAB'])
-    else:
-        if ylab: # If y in labedled data
-            new_cols.append(const_dict['N_LAB1'])        
-        else:
-            new_cols.append(const_dict['N_LAB2'])    
-    if isinstance(ss_fh, str) and os.path.exists(ss_fh):
-        log.log(f"--- Reading Burden test summary statistics on {'y' if ylab else 'yhat'} in {'unlabeled' if unlab else 'labeled'} data: {ss_fh}")
-        try: 
-            ss = pl.read_csv(ss_fh, has_header=True, separator="\t", try_parse_dates=False, null_values='NA') \
-                 .select(old_cols) \
-                 .rename(dict(zip(old_cols,new_cols)))
-        except ValueError as e:
-            log.log(f"ValueError error occurred: {e}")
-        except pl.exceptions.ComputeError as e:
-            # log.log(f"ComputeError error occurred: {e}")
-            ss = pl.read_csv(ss_fh, has_header=True, columns=old_cols, separator="\t", try_parse_dates=False, null_values='NA') \
-                 .lazy() \
-                 .select(old_cols) \
-                 .rename(dict(zip(old_cols,new_cols)))
-    else:
+    """Read signed burden statistics; binary counts supply total N, not an OR scale."""
+    if not isinstance(ss_fh, str) or not os.path.isfile(ss_fh):
         raise FileNotFoundError(f"File not found or invalid input: {ss_fh}")
-    
-    return ss.drop_nulls(subset=[z])
+    log.log(f"--- Reading Burden test summary statistics on {'y' if ylab else 'yhat'} in {'unlabeled' if unlab else 'labeled'} data: {ss_fh}")
+    ss = pl.read_csv(ss_fh, separator="\t", null_values='NA')
+    required = {"GENE", "MASK", "Z"}
+    if not required.issubset(ss.columns):
+        raise ValueError(f"{ss_fh}: missing burden columns {sorted(required - set(ss.columns))}")
+    counts = {"N_case", "N_control"}
+    has_counts = counts.intersection(ss.columns)
+    if binary and has_counts:
+        if has_counts != counts:
+            raise ValueError(f"{ss_fh}: supply both N_case and N_control, or N alone")
+        total = (_validate_sample_counts(ss, "N_case", ss_fh)
+                 + _validate_sample_counts(ss, "N_control", ss_fh))
+        if "N" in ss.columns:
+            n = _validate_sample_counts(ss, "N", ss_fh)
+            if (n != total).any():
+                raise ValueError(f"{ss_fh}: N must equal N_case + N_control")
+        else:
+            ss = ss.with_columns(total.alias("N"))
+    if "N" not in ss.columns:
+        raise ValueError(f"{ss_fh}: burden input requires N (or N_case and N_control with --bt)")
+    n = _validate_sample_counts(ss, "N", ss_fh)
+    ss = ss.with_columns(n.alias("N"), pl.col("Z").cast(pl.Float64)).drop_nulls(subset=["Z"])
+    if not ss["Z"].is_finite().all():
+        raise ValueError(f"{ss_fh}: Z must be finite; use NA for unavailable tests")
+    if ss["GENE"].is_null().any() or ss["MASK"].is_null().any():
+        raise ValueError(f"{ss_fh}: GENE and MASK must not be missing")
+    if ss.select("GENE", "MASK").is_duplicated().any():
+        raise ValueError(f"{ss_fh}: duplicate GENE/MASK tests")
+    z = const_dict['Z_Y_LAB'] if ylab else const_dict['Z']
+    n_col = const_dict['N_UNLAB'] if unlab else const_dict['N_LAB1'] if ylab else const_dict['N_LAB2']
+    return ss.select("GENE", "MASK", "Z", "N").rename({"Z": z, "N": n_col})
 
 def _merge_match_a1a2(ss1, ss2):
     alleles_list = [const_dict['A1'], const_dict['A2'], const_dict['A1'] + 'x', const_dict['A2'] + 'x']
@@ -262,8 +271,7 @@ def _merge_match_a1a2_rare(ss1, ss2):
 
 def _merge_gene(ss1, ss2):
 
-    ss = ss1.join(ss2, on=const_dict['GENE'], how='inner', suffix='x') \
-        .select(~pl.selectors.by_name(const_dict['MASK'] + 'x')) \
+    ss = ss1.join(ss2, on=[const_dict['GENE'], const_dict['MASK']], how='inner')
 
     if const_dict['Z_YHAT_UNLAB'] not in ss1.columns: # first merge between ss
         ss = ss.rename({const_dict['Z']: const_dict['Z_YHAT_UNLAB']})
@@ -341,7 +349,8 @@ def _read_z_gene(ss_in_yhat_unlab, ss_in_y_lab, ss_in_yhat_lab, binary, log):
 
     # Match A1 and A2; align Z; Remove SNPs with non-biallelic alleles or unmatched alleles across different input GWAS
     df = reduce(_merge_gene, [ss_y_lab, ss_yhat_unlab, ss_yhat_lab])
-
+    if df.is_empty():
+        raise ValueError("No matching GENE/MASK tests across the three burden inputs")
     return df, const_dict['N_LAB1'], const_dict['N_LAB2'], const_dict['N_UNLAB']
 
 def _format_out(df):
@@ -395,4 +404,3 @@ def _format_out_gene(df):
     df = df.with_columns([pl.col(const_dict['P']).decimal.to_scientific(3).alias(const_dict['P']), pl.col(const_dict['Z']).decimal.to_positional(3).alias(const_dict['Z']), pl.col(const_dict['N_EFF']).decimal.to_int().alias(const_dict['N_EFF'])])
 
     return df
-

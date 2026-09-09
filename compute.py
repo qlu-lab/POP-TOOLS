@@ -62,6 +62,9 @@ def _cal_qt_wtd(z_df, n, N1, N2, r12, r13, r23, eaf):
 
 # d is data calculated by qt
 def _qt_to_bt(d, n, n_case, eaf):
+    columns = d.collect_schema().names() if isinstance(d, pl.LazyFrame) else d.columns
+    if const_dict['GENE'] in columns:
+        raise ValueError("Burden Z/N outputs cannot be converted to OR with _qt_to_bt; the original burden effect scale is required")
     case_prop = _case_prop(n_case, n)
     or_popgwas = _linear_to_log_or(pl.col(const_dict['BETA']), case_prop, eaf)
     se_popgwas = _linear_to_log_or(pl.col(const_dict['SE']), case_prop, eaf)
@@ -106,6 +109,7 @@ def estimate_poprare(z_df, n_col, N1_col, n_case_col, N2_col, eaf_col, bt, ovp, 
 
 
 def estimate_popburden(z_df, n_col, N1_col, N2_col, ovp, log, r12=None):
+    """Combine signed burden Z statistics; BETA/SE use the Z/sqrt(N) working scale."""
     n, N1, N2 = pl.col(n_col), pl.col(N1_col), pl.col(N2_col)
 
     corr_matrix = z_df.select(["Z_y_lab", "Z_yhat_unlab", "Z_yhat_lab"]).corr()
@@ -126,4 +130,6 @@ def estimate_popburden(z_df, n_col, N1_col, N2_col, ovp, log, r12=None):
         log.log(f"--- The correlation between RVAS estimates on yhat in labeled and unlabeled data = {r23:.3f}")
 
     d = _cal_qt_wtd(z_df=z_df.lazy(), n=n, N1=N1, N2=N2, r12=r12, r13=r13, r23=r23, eaf= None)
-    return d.drop([n_col, N1_col, N2_col])
+    return d.drop([n_col, N1_col, N2_col]).with_columns(
+        pl.lit("Z_OVER_SQRT_N").alias("EFFECT_SCALE")
+    )

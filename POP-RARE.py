@@ -24,7 +24,7 @@ def parse_args():
     parser.add_argument("--out", action="store", default='POP-TOOLS', type=str, required=True,
         help="The prefix of path to output summary statistics")
     parser.add_argument("--bt", "--binary-trait", dest="bt", action="store_true", default=False,
-        help="Whether the trait is binary or not")
+        help="Binary trait. With --burden, accepts N or N_case + N_control; does not convert burden effects to OR")
     parser.add_argument("--ovp", "--sample-overlap", dest="ovp", action="store_true", default=False,
         help="Whether to correct for sample overlap or not")
     parser.add_argument("--r", action="store", default=None, type=float,
@@ -61,6 +61,9 @@ def main():
         
         if args.burden:
             log.log("\n### Reading the Burden test summary statistics ###\n")
+            log.log("--- Burden BETA/SE are on the Z/sqrt(N) working scale, not original-scale effects or log-OR. Do not apply _qt_to_bt to burden output.")
+            if args.bt:
+                log.log("--- Binary burden analysis: case/control counts, when supplied, determine total N only. Z/P computation is unchanged; OR cannot be recovered from these inputs alone.")
             # parse summary statistics -> Z table
             z_df, n_col, N1_col, N2_col = utils.read_z_gene(args=args, log=log)
         else:
