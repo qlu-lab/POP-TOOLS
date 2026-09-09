@@ -25,51 +25,6 @@ Please see the [wiki](https://github.com/qlu-lab/POP-TOOLS/wiki) for tutorials d
 
 Please see the [FAQ](https://github.com/qlu-lab/POP-TOOLS/wiki/FAQ) for frequently asked questions related to `POP-TOOLS`.
 
-## Binary-trait gene-level burden tests
-
-Use `POP-RARE.py --burden` with three tab-separated inputs containing
-`GENE`, `MASK`, signed `Z`, and total sample count `N`. This input format
-works for quantitative and binary traits; `--bt` is optional when all inputs
-already contain `N`. The upstream observed-trait burden test must itself be
-appropriate for a binary phenotype. Use the same burden definition and effect
-direction across all three inputs, and analyze one mask at a time.
-
-With `--burden --bt`, each input may instead provide `N_case` and `N_control`;
-the reader calculates `N = N_case + N_control`. Predicted-phenotype inputs may
-still provide `N` alone. If both formats are supplied, their totals must agree.
-Counts must be positive finite integers. `N` is the number of analyzed samples,
-not the number of carriers or a case/control effective sample size.
-
-```bash
-python3 POP-RARE.py \
-  --gwas-y-lab observed.Burden.tsv \
-  --gwas-yhat-lab predicted_labeled.Burden.tsv \
-  --gwas-yhat-unlab predicted_unlabeled.Burden.tsv \
-  --burden --bt \
-  --out binary_trait
-```
-
-`--bt` does not rescale burden test statistics. `Z` and `P` are the association
-outputs; their validity depends on calibrated input statistics and the method's
-sampling/correlation assumptions. This option does not correct an uncalibrated
-upstream test or severe case/control imbalance.
-
-For backward compatibility, burden output retains `BETA` and `SE`, and adds
-`EFFECT_SCALE=Z_OVER_SQRT_N`. These are working-scale quantities constructed
-from signed Z scores and sample counts, not raw 0/1 phenotype coefficients,
-per-allele burden effects, or log odds ratios. `N_eff` is the existing working-scale
-precision measure, not an inferred count of cases and controls.
-
-Do **not** apply `_qt_to_bt()` to these burden outputs: case fraction alone
-does not recover an OR. For example, multiplying every burden score by a
-constant preserves its Z statistic and N but changes its per-unit regression
-coefficient. Recovering a meaningful OR requires additional upstream effect
-scale/model information and a justified conversion. No burden `OR` or `LOG_OR`
-is reported; the helper now rejects gene-level output to prevent this misuse.
-
-Run the regression tests with `python -m pytest test/test_burden.py`
-(install `pytest` in addition to `requirements.txt`).
-
 ## Power and sample size calculator
 
 We provide a [web interface](https://jmiao24.shinyapps.io/pop-gwas/) for the power and sample size calculation for ML-assisted GWAS.
