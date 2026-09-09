@@ -194,16 +194,18 @@ def _read_ss(ss_fh, binary, unlab, ylab, log):
             ss = ss.with_columns((pl.col(const_dict['N_LAB_CASE']) + pl.col(const_dict['N_LAB_CONTROL'])).alias(const_dict['N_LAB2'])).drop(const_dict['N_LAB_CONTROL'], const_dict['N_LAB_CASE'])
     return ss.drop_nulls(subset=[z])
 
-def _validate_sample_counts(ss, column, ss_fh):
+def _validate_sample_counts(ss, column, ss_fh, integer=True):
     values = ss[column].cast(pl.Float64)
     if (values.is_null().any() or not values.is_finite().all()
-            or (values <= 0).any() or (values != values.floor()).any()):
-        raise ValueError(f"{ss_fh}: {column} must contain positive finite integer sample counts")
+            or (values <= 0).any()
+            or (integer and (values != values.floor()).any())):
+        requirement = "positive finite integer sample counts" if integer else "positive finite sample sizes"
+        raise ValueError(f"{ss_fh}: {column} must contain {requirement}")
     return values
 
 
 def _read_ss_gene(ss_fh, binary, unlab, ylab, log):
-    """Read signed burden statistics; binary counts supply total N, not an OR scale."""
+    """Read signed burden statistics; explicit model N takes priority over counts."""
     if not isinstance(ss_fh, str) or not os.path.isfile(ss_fh):
         raise FileNotFoundError(f"File not found or invalid input: {ss_fh}")
     log.log(f"--- Reading Burden test summary statistics on {'y' if ylab else 'yhat'} in {'unlabeled' if unlab else 'labeled'} data: {ss_fh}")
@@ -219,14 +221,15 @@ def _read_ss_gene(ss_fh, binary, unlab, ylab, log):
         total = (_validate_sample_counts(ss, "N_case", ss_fh)
                  + _validate_sample_counts(ss, "N_control", ss_fh))
         if "N" in ss.columns:
-            n = _validate_sample_counts(ss, "N", ss_fh)
+            n = _validate_sample_counts(ss, "N", ss_fh, integer=False)
             if (n != total).any():
-                raise ValueError(f"{ss_fh}: N must equal N_case + N_control")
+                log.log(f"--- Warning: {ss_fh}: N differs from N_case + N_control. Using supplied N; verify its model-specific justification (or correct a count mismatch).")
         else:
             ss = ss.with_columns(total.alias("N"))
+            log.log(f"--- {ss_fh}: using N_case + N_control as N. This supplies total sample size, not a model-specific effective sample size.")
     if "N" not in ss.columns:
         raise ValueError(f"{ss_fh}: burden input requires N (or N_case and N_control with --bt)")
-    n = _validate_sample_counts(ss, "N", ss_fh)
+    n = _validate_sample_counts(ss, "N", ss_fh, integer=False)
     ss = ss.with_columns(n.alias("N"), pl.col("Z").cast(pl.Float64)).drop_nulls(subset=["Z"])
     if not ss["Z"].is_finite().all():
         raise ValueError(f"{ss_fh}: Z must be finite; use NA for unavailable tests")

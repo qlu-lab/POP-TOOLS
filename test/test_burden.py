@@ -17,8 +17,11 @@ import utils
 
 
 class Log:
+    def __init__(self):
+        self.messages = []
+
     def log(self, message):
-        pass
+        self.messages.append(message)
 
 
 def frame(z=(1., -2., 0.5, 3.)):
@@ -41,7 +44,7 @@ def test_total_n_and_case_counts_are_equivalent(tmp_path):
 
 
 @pytest.mark.parametrize("value", [0, -1, 1.5, float("inf"), float("nan"), None])
-@pytest.mark.parametrize("column", ["N", "N_case", "N_control"])
+@pytest.mark.parametrize("column", ["N_case", "N_control"])
 def test_invalid_counts_fail(tmp_path, value, column):
     data = frame().with_columns(pl.lit(100).alias("N_case"), pl.lit(900).alias("N_control"))
     data = data.with_columns(pl.lit(value).alias(column))
@@ -49,11 +52,34 @@ def test_invalid_counts_fail(tmp_path, value, column):
         read(tmp_path, data)
 
 
-def test_inconsistent_or_incomplete_counts_fail(tmp_path):
+@pytest.mark.parametrize("value", [0, -1, float("inf"), float("nan"), None])
+def test_invalid_model_n_fails(tmp_path, value):
+    with pytest.raises(ValueError, match="positive finite sample sizes"):
+        read(tmp_path, frame().with_columns(pl.lit(value).alias("N")))
+
+
+@pytest.mark.parametrize("binary", [False, True])
+def test_fractional_model_n_is_preserved(tmp_path, binary):
+    data = frame().with_columns(pl.Series("N", [850.25, 900.5, 700.75, 1100.125]))
+    result = read(tmp_path, data, binary)
+    np.testing.assert_array_equal(result["N_lab1"], data["N"])
+
+
+def test_explicit_model_n_takes_priority_over_counts(tmp_path):
+    data = frame().with_columns(pl.lit(850.25).alias("N"),
+                                pl.lit(100).alias("N_case"), pl.lit(900).alias("N_control"))
+    path = tmp_path / "counts.tsv"
+    data.write_csv(path, separator="\t")
+    log = Log()
+    result = utils._read_ss_gene(str(path), True, False, True, log)
+    assert result["N_lab1"].to_list() == [850.25] * 4
+    assert any("Using supplied N" in message for message in log.messages)
+    assert_frame_equal(result, read(tmp_path, data.drop("N_case", "N_control")))
+
+
+def test_incomplete_counts_fail(tmp_path):
     with pytest.raises(ValueError, match="both N_case"):
         read(tmp_path, frame().with_columns(pl.lit(100).alias("N_case")))
-    with pytest.raises(ValueError, match="N must equal"):
-        read(tmp_path, frame().with_columns(pl.lit(100).alias("N_case"), pl.lit(800).alias("N_control")))
     with pytest.raises(ValueError, match="requires N"):
         read(tmp_path, frame().drop("N"))
 
@@ -151,8 +177,13 @@ def test_manual_binary_conversion_rejected(tmp_path, lazy):
 
 @pytest.mark.parametrize("binary", [False, True])
 @pytest.mark.parametrize("overlap", [False, True])
-def test_cli(tmp_path, binary, overlap):
+@pytest.mark.parametrize("model_n", [None, 850.25])
+def test_cli(tmp_path, binary, overlap, model_n):
     paths = inputs(tmp_path, binary=binary)
+    if model_n is not None:
+        for path in paths:
+            data = pl.read_csv(path, separator="\t").with_columns(pl.lit(model_n).alias("N"))
+            data.write_csv(path, separator="\t")
     prefix = tmp_path / "result"
     cmd = [sys.executable, str(ROOT / "POP-RARE.py"), "--burden",
            "--gwas-y-lab", paths[0], "--gwas-yhat-lab", paths[1],
@@ -169,3 +200,5 @@ def test_cli(tmp_path, binary, overlap):
     assert result["EFFECT_SCALE"].unique().to_list() == ["Z_OVER_SQRT_N"]
     assert "not original-scale effects or log-OR" in run.stdout
     assert "OR" not in result.columns
+    if binary and model_n is not None:
+        assert "Using supplied N" in run.stdout
